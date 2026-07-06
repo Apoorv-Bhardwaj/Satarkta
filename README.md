@@ -1,3 +1,13 @@
+---
+title: Satarkta Pipeline
+emoji: 🛡️
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 8501
+pinned: false
+---
+
 # Satarkta Pipeline
 
 **Real-Time Financial Fraud Detection & AI Investigation Co-Pilot**
