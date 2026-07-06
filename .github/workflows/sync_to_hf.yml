@@ -18,4 +18,4 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         # Replace <YOUR_HF_USERNAME> and <YOUR_SPACE_NAME> with your actual Hugging Face details
-        run: git push --force https://<YOUR_HF_USERNAME>:$HF_TOKEN@huggingface.co/spaces/<YOUR_HF_USERNAME>/<YOUR_SPACE_NAME> HEAD:main
+        run: git push --force https://camphor5:$HF_TOKEN@huggingface.co/spaces/camphor5/Satarkta HEAD:main

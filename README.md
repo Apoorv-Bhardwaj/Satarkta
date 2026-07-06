@@ -1,12 +1,12 @@
-# 🛡️ FinGuard Accelerate (Satarkta Pipeline)
+# Satarkta Pipeline
 
 **Real-Time Financial Fraud Detection & AI Investigation Co-Pilot**
 
-FinGuard Accelerate (Project Satarkta) is a state-of-the-art financial security dashboard designed to intercept fraudulent transactions in real-time. Built to handle highly imbalanced datasets, it pairs a lightning-fast XGBoost inference engine with a Gemini-powered AI Co-Pilot to not only block fraud, but to explain *why* it was blocked.
+Project Satarkta is a state-of-the-art financial security dashboard designed to intercept fraudulent transactions in real-time. Built to handle highly imbalanced datasets, it pairs a lightning-fast XGBoost inference engine with a Gemini-powered AI Co-Pilot to not only block fraud, but to explain *why* it was blocked.
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
 * **High-Speed Inference Engine:** Utilizes an optimized XGBoost classifier trained on Kaggle's dual GPUs (`tree_method='hist'`, `device='cuda'`) to score incoming transactions in milliseconds.
 * **Tackling Extreme Imbalance:** Trained specifically on the notoriously difficult MLG-ULB Credit Card Fraud dataset (where only 0.17% of transactions are fraudulent). Evaluated using AUPRC (Area Under the Precision-Recall Curve) to ensure genuine robustness against false positives.
@@ -16,7 +16,7 @@ FinGuard Accelerate (Project Satarkta) is a state-of-the-art financial security 
 
 ---
 
-## 🧠 Architecture & Tech Stack
+##  Architecture & Tech Stack
 
 - **Frontend & UI:** Streamlit (Python)
 - **Machine Learning:** XGBoost, Scikit-Learn, Pandas, NumPy
@@ -27,7 +27,7 @@ FinGuard Accelerate (Project Satarkta) is a state-of-the-art financial security 
 
 ---
 
-## 💻 Local Setup & Execution
+##  Local Setup & Execution
 
 ### 1. Prerequisites
 Ensure you have Python 3 installed. Clone the repository and install the dependencies:
