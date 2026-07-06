@@ -173,7 +173,7 @@ else:
                         full_prompt = f"Context: No transactions have been fetched yet.\n\nUser Question: {prompt}"
                         
                     response = ai_client.models.generate_content(
-                        model='gemini-1.5-flash',
+                        model='gemini-3-flash',
                         contents=full_prompt,
                         config=types.GenerateContentConfig(
                             system_instruction="You are a Senior Fraud Operations Assistant named Satarkta. You analyze financial transaction data to identify potential fraud. The data uses PCA-transformed features (V1-V28). Be concise, professional, and do not use emojis."
@@ -182,4 +182,12 @@ else:
                     st.markdown(response.text)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                 except Exception as e:
-                    st.error(f"Error communicating with AI: {str(e)}")
+                    error_msg = str(e)
+                    st.error(f"Error communicating with AI: {error_msg}")
+                    if "404" in error_msg or "not found" in error_msg.lower():
+                        try:
+                            st.warning("Attempting to fetch a list of currently available models for your API key...")
+                            available_models = [m.name for m in ai_client.models.list()]
+                            st.info(f"**Available models:** {', '.join(available_models)}")
+                        except Exception as list_e:
+                            st.error(f"Could not fetch model list: {str(list_e)}")
