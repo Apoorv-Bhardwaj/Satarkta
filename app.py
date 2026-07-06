@@ -173,7 +173,7 @@ else:
                         full_prompt = f"Context: No transactions have been fetched yet.\n\nUser Question: {prompt}"
                         
                     response = ai_client.models.generate_content(
-                        model='gemini-3-flash',
+                        model='gemini-2.5-flash',
                         contents=full_prompt,
                         config=types.GenerateContentConfig(
                             system_instruction="You are a Senior Fraud Operations Assistant named Satarkta. You analyze financial transaction data to identify potential fraud. The data uses PCA-transformed features (V1-V28). Be concise, professional, and do not use emojis."
