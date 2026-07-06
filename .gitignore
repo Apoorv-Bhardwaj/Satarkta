@@ -1,0 +1,12 @@
+# Environments
+venv/
+env/
+.env
+__pycache__/
+
+# Large datasets (we don't want to push the 150MB dataset to Github)
+creditcard.csv
+*.csv
+
+# Ensure the model artifact DOES get pushed so HF can use it
+!model.json
