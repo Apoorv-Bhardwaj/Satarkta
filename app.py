@@ -50,7 +50,7 @@ def setup_gemini():
     
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash', 
+        model = genai.GenerativeModel('gemini-1.5-flash-latest', 
                                       system_instruction="You are a Senior Fraud Operations Assistant named Satarkta. You analyze financial transaction data to identify potential fraud. The data uses PCA-transformed features (V1-V28). Be concise, professional, and do not use emojis.")
         return model
     except Exception as e:

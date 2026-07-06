@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 import os
 
+_cached_normal = None
+_cached_fraud = None
+
 def _generate_synthetic_pca(n_samples: int) -> pd.DataFrame:
     """Generates synthetic random data matching the MLG-ULB Credit Card Fraud schema."""
     np.random.seed(None)
@@ -9,7 +12,7 @@ def _generate_synthetic_pca(n_samples: int) -> pd.DataFrame:
     data = {
         'Time': np.random.uniform(0, 172792, size=n_samples).round(0),
         'Amount': np.random.exponential(scale=88, size=n_samples).round(2),
-        'Class': np.random.choice([0, 1], size=n_samples, p=[0.99, 0.01]) # 1% fraud for testing
+        'Class': np.random.choice([0, 1], size=n_samples, p=[0.97, 0.03]) # 3% fraud for testing
     }
     
     for i in range(1, 29):
@@ -20,22 +23,44 @@ def _generate_synthetic_pca(n_samples: int) -> pd.DataFrame:
     df = df.sort_values('Time').reset_index(drop=True)
     return df
 
+def get_cached_data(file_path):
+    global _cached_normal, _cached_fraud
+    if _cached_normal is None or _cached_fraud is None:
+        print(f"Loading full {file_path} into memory for balanced sampling...")
+        df = pd.read_csv(file_path)
+        _cached_normal = df[df['Class'] == 0]
+        _cached_fraud = df[df['Class'] == 1]
+    return _cached_normal, _cached_fraud
+
 def generate_live_batch(batch_size: int = 15, file_path: str = 'creditcard.csv', current_step: int = 0) -> pd.DataFrame:
     """
-    Attempts to read a batch from the real creditcard.csv if it exists locally.
-    Otherwise, generates synthetic PCA data for testing the UI.
+    Reads from the real creditcard.csv using a cached memory strategy.
+    Forces a ~30:1 legitimate-to-fraud ratio so the dashboard shows interesting alerts.
     """
     if os.path.exists(file_path):
-        # Read a chunk from the real CSV
-        try:
-            # Skip rows to simulate streaming
-            df = pd.read_csv(file_path, skiprows=range(1, current_step + 1), nrows=batch_size)
-        except Exception:
-            df = pd.read_csv(file_path, nrows=batch_size)
+        normal_df, fraud_df = get_cached_data(file_path)
+        
+        # 30:1 ratio means fraud is roughly 1/31 of the data (~3.2%)
+        fraud_prob = 1.0 / 31.0
+        num_fraud = np.random.binomial(batch_size, fraud_prob)
+        
+        # Ensure at least occasionally we get a fraud case even if binomial rolls 0 a lot
+        if num_fraud == 0 and np.random.rand() < 0.3:
+            num_fraud = 1
+            
+        num_normal = batch_size - num_fraud
+        
+        batch = pd.concat([
+            normal_df.sample(num_normal),
+            fraud_df.sample(num_fraud)
+        ])
+        
+        # Shuffle the batch so fraud isn't always at the bottom
+        batch = batch.sample(frac=1).reset_index(drop=True)
+        return batch
     else:
         df = _generate_synthetic_pca(batch_size)
-        
-    return df
+        return df
 
 if __name__ == "__main__":
     print("Generating synthetic PCA data for testing...")
