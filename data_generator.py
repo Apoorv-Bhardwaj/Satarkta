@@ -32,16 +32,17 @@ def get_cached_data(file_path):
         _cached_fraud = df[df['Class'] == 1]
     return _cached_normal, _cached_fraud
 
-def generate_live_batch(batch_size: int = 15, file_path: str = 'creditcard.csv', current_step: int = 0) -> pd.DataFrame:
+def generate_live_batch(batch_size: int = 15, file_path: str = 'creditcard.csv', current_step: int = 0, force_malicious: bool = False) -> pd.DataFrame:
     """
     Reads from the real creditcard.csv using a cached memory strategy.
-    Forces a ~30:1 legitimate-to-fraud ratio so the dashboard shows interesting alerts.
     """
     if os.path.exists(file_path):
         normal_df, fraud_df = get_cached_data(file_path)
         
-        # Force exactly 1 or 2 fraud cases per batch (approx 15:1 to 7:1 ratio) to guarantee an exciting demo
-        num_fraud = np.random.choice([1, 2])
+        if force_malicious:
+            num_fraud = np.random.choice([1, 2, 3])
+        else:
+            num_fraud = 0
             
         num_normal = batch_size - num_fraud
         

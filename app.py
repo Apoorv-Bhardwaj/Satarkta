@@ -13,47 +13,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom footer and sleek CSS
+# Custom footer
 custom_css = """
 <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* Sleek professional UI accents */
-    .stApp {
-        background-color: #0e1117;
-    }
-    
-    .stMetric {
-        background-color: #1e2530;
-        padding: 15px;
-        border-radius: 10px;
-        border-left: 4px solid #00ffcc;
-        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
-    }
-    
-    h1, h2, h3 {
-        color: #f0f2f6 !important;
-        font-family: 'Inter', sans-serif;
-    }
-    
-    .stButton>button {
-        border-radius: 8px;
-        background-color: #00ffcc;
-        color: #000;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-    
-    .stButton>button:hover {
-        background-color: #00ccaa;
-        color: #fff;
-    }
-    
-    .stDataFrame {
-        border-radius: 10px;
-        overflow: hidden;
-    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -61,7 +25,7 @@ st.markdown(custom_css, unsafe_allow_html=True)
 st.markdown(
     """
     <div style='position: fixed; bottom: 10px; right: 10px; font-size: 12px; color: gray; z-index: 999;'>
-        made with ❤️ by <a href='https://github.com/Apoorv-Bhardwaj' target='_blank' style='color: #00ffcc; text-decoration: none;'>Apoorv</a>
+        made with ❤️ by <a href='https://github.com/Apoorv-Bhardwaj' target='_blank' style='text-decoration: none;'>Apoorv</a>
     </div>
     """, 
     unsafe_allow_html=True
@@ -107,12 +71,25 @@ if 'live_df' not in st.session_state:
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
+import time
+
 # Sidebar Controls
 with st.sidebar:
     st.header("Control Panel")
-    if st.button("Fetch Next Transaction Batch", type="primary"):
+    
+    fetch_regular = st.button("Fetch Next Transaction Batch", type="primary", use_container_width=True)
+    fetch_malicious = st.button("Fetch Malicious Transaction", use_container_width=True)
+    
+    if fetch_regular or fetch_malicious:
         with st.spinner("Fetching and scoring..."):
-            raw_batch = generate_live_batch(batch_size=15, current_step=st.session_state.current_step)
+            time.sleep(0.5) # 0.5s rate limiter simulation
+            
+            raw_batch = generate_live_batch(
+                batch_size=15, 
+                current_step=st.session_state.current_step,
+                force_malicious=bool(fetch_malicious)
+            )
+            
             # Remove ground truth label for inference realism if it exists
             if 'Class' in raw_batch.columns:
                 raw_batch = raw_batch.drop(columns=['Class'])
@@ -122,7 +99,7 @@ with st.sidebar:
             st.session_state.current_step += 15
 
 # Main Dashboard
-st.title("🛡️ Satarkta Pipeline")
+st.title("Satarkta Pipeline")
 
 if not st.session_state.live_df.empty:
     df = st.session_state.live_df
