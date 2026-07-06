@@ -40,13 +40,8 @@ def generate_live_batch(batch_size: int = 15, file_path: str = 'creditcard.csv',
     if os.path.exists(file_path):
         normal_df, fraud_df = get_cached_data(file_path)
         
-        # 30:1 ratio means fraud is roughly 1/31 of the data (~3.2%)
-        fraud_prob = 1.0 / 31.0
-        num_fraud = np.random.binomial(batch_size, fraud_prob)
-        
-        # Ensure at least occasionally we get a fraud case even if binomial rolls 0 a lot
-        if num_fraud == 0 and np.random.rand() < 0.3:
-            num_fraud = 1
+        # Force exactly 1 or 2 fraud cases per batch (approx 15:1 to 7:1 ratio) to guarantee an exciting demo
+        num_fraud = np.random.choice([1, 2])
             
         num_normal = batch_size - num_fraud
         

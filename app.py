@@ -8,23 +8,60 @@ import json
 
 # Set up page config
 st.set_page_config(
-    page_title="FinGuard Accelerate | Satarkta",
+    page_title="Satarkta Pipeline",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom footer
-hide_default_format = """
-       <style>
-       #MainMenu {visibility: hidden; }
-       footer {visibility: hidden;}
-       </style>
-       """
-st.markdown(hide_default_format, unsafe_allow_html=True)
+# Custom footer and sleek CSS
+custom_css = """
+<style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Sleek professional UI accents */
+    .stApp {
+        background-color: #0e1117;
+    }
+    
+    .stMetric {
+        background-color: #1e2530;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 4px solid #00ffcc;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    h1, h2, h3 {
+        color: #f0f2f6 !important;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .stButton>button {
+        border-radius: 8px;
+        background-color: #00ffcc;
+        color: #000;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton>button:hover {
+        background-color: #00ccaa;
+        color: #fff;
+    }
+    
+    .stDataFrame {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+</style>
+"""
+st.markdown(custom_css, unsafe_allow_html=True)
+
 st.markdown(
     """
-    <div style='position: fixed; bottom: 10px; right: 10px; font-size: 12px; color: gray;'>
-        made with ❤️ by <a href='https://github.com/Apoorv-Bhardwaj' target='_blank'>Apoorv</a>
+    <div style='position: fixed; bottom: 10px; right: 10px; font-size: 12px; color: gray; z-index: 999;'>
+        made with ❤️ by <a href='https://github.com/Apoorv-Bhardwaj' target='_blank' style='color: #00ffcc; text-decoration: none;'>Apoorv</a>
     </div>
     """, 
     unsafe_allow_html=True
@@ -50,7 +87,8 @@ def setup_gemini():
     
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash-latest', 
+        # Using gemini-1.5-pro to ensure maximum compatibility and avoid 404s
+        model = genai.GenerativeModel('gemini-1.5-pro', 
                                       system_instruction="You are a Senior Fraud Operations Assistant named Satarkta. You analyze financial transaction data to identify potential fraud. The data uses PCA-transformed features (V1-V28). Be concise, professional, and do not use emojis.")
         return model
     except Exception as e:
@@ -84,7 +122,7 @@ with st.sidebar:
             st.session_state.current_step += 15
 
 # Main Dashboard
-st.title("FinGuard Accelerate Dashboard")
+st.title("🛡️ Satarkta Pipeline")
 
 if not st.session_state.live_df.empty:
     df = st.session_state.live_df
@@ -124,7 +162,7 @@ if not st.session_state.live_df.empty:
         'V1': "{:.3f}", 'V2': "{:.3f}", 'V3': "{:.3f}", 'V4': "{:.3f}"
     })
     
-    st.dataframe(styled_df, use_container_width=True, height=400)
+    st.dataframe(styled_df, width="stretch", height=400)
     st.caption("Note: PCA features V5-V28 are hidden from the visual dashboard for clarity but are still used for ML scoring.")
 else:
     st.info("Click 'Fetch Next Transaction Batch' in the sidebar to start the live stream.")
