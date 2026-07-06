@@ -33,9 +33,6 @@ def get_cached_data(file_path):
     return _cached_normal, _cached_fraud
 
 def generate_live_batch(batch_size: int = 15, file_path: str = 'creditcard.csv', current_step: int = 0, force_malicious: bool = False) -> pd.DataFrame:
-    """
-    Reads from the real creditcard.csv using a cached memory strategy.
-    """
     if os.path.exists(file_path):
         normal_df, fraud_df = get_cached_data(file_path)
         
@@ -51,7 +48,6 @@ def generate_live_batch(batch_size: int = 15, file_path: str = 'creditcard.csv',
             fraud_df.sample(num_fraud)
         ])
         
-        # Shuffle the batch so fraud isn't always at the bottom
         batch = batch.sample(frac=1).reset_index(drop=True)
         return batch
     else:

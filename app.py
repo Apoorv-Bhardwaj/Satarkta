@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from satarkta_ml import SatarktaModel
 from data_generator import generate_live_batch
 import json
@@ -46,20 +47,17 @@ ml_engine = load_ml_engine()
 def setup_gemini():
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        st.sidebar.warning("GEMINI_API_KEY environment variable not found. AI Co-Pilot disabled.")
+        st.sidebar.warning("GEMINI_API_KEY environment variable not found. Satarkta Bot disabled.")
         return None
     
     try:
-        genai.configure(api_key=api_key)
-        # Using gemini-1.5-pro to ensure maximum compatibility and avoid 404s
-        model = genai.GenerativeModel('gemini-1.5-pro', 
-                                      system_instruction="You are a Senior Fraud Operations Assistant named Satarkta. You analyze financial transaction data to identify potential fraud. The data uses PCA-transformed features (V1-V28). Be concise, professional, and do not use emojis.")
-        return model
+        client = genai.Client(api_key=api_key)
+        return client
     except Exception as e:
         st.sidebar.error(f"Failed to initialize Gemini: {str(e)}")
         return None
 
-ai_model = setup_gemini()
+ai_client = setup_gemini()
 
 # State Management
 if 'current_step' not in st.session_state:
@@ -82,7 +80,7 @@ with st.sidebar:
     
     if fetch_regular or fetch_malicious:
         with st.spinner("Fetching and scoring..."):
-            time.sleep(0.5) # 0.5s rate limiter simulation
+            time.sleep(0.5)
             
             raw_batch = generate_live_batch(
                 batch_size=15, 
@@ -90,7 +88,6 @@ with st.sidebar:
                 force_malicious=bool(fetch_malicious)
             )
             
-            # Remove ground truth label for inference realism if it exists
             if 'Class' in raw_batch.columns:
                 raw_batch = raw_batch.drop(columns=['Class'])
             
@@ -100,6 +97,9 @@ with st.sidebar:
 
 # Main Dashboard
 st.title("Satarkta Pipeline")
+
+if not os.path.exists('creditcard.csv'):
+    st.error("⚠️ `creditcard.csv` is missing from the server! The dashboard is currently generating random fake numbers, which the AI model will always score as APPROVED (0.0000). Please upload the dataset to Hugging Face Spaces to see real fraud detection.")
 
 if not st.session_state.live_df.empty:
     df = st.session_state.live_df
@@ -144,12 +144,12 @@ if not st.session_state.live_df.empty:
 else:
     st.info("Click 'Fetch Next Transaction Batch' in the sidebar to start the live stream.")
 
-# AI Co-Pilot Interface
+# Satarkta Bot Interface
 st.divider()
-st.subheader("AI Co-Pilot")
+st.subheader("Satarkta Bot")
 
-if ai_model is None:
-    st.warning("AI Co-Pilot is currently unavailable due to missing API key.")
+if ai_client is None:
+    st.warning("Satarkta Bot is currently unavailable due to missing API key.")
 else:
     # Render Chat History
     for msg in st.session_state.chat_history:
@@ -167,13 +167,18 @@ else:
             with st.spinner("Analyzing..."):
                 try:
                     if not st.session_state.live_df.empty:
-                        # Send full dataframe context including hidden columns to AI
                         context_json = st.session_state.live_df.to_json(orient="records")
                         full_prompt = f"Context (Live DataFrame State as JSON): {context_json}\n\nUser Question: {prompt}"
                     else:
                         full_prompt = f"Context: No transactions have been fetched yet.\n\nUser Question: {prompt}"
                         
-                    response = ai_model.generate_content(full_prompt)
+                    response = ai_client.models.generate_content(
+                        model='gemini-1.5-flash',
+                        contents=full_prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction="You are a Senior Fraud Operations Assistant named Satarkta. You analyze financial transaction data to identify potential fraud. The data uses PCA-transformed features (V1-V28). Be concise, professional, and do not use emojis."
+                        )
+                    )
                     st.markdown(response.text)
                     st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                 except Exception as e:
