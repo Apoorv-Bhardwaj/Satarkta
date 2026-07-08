@@ -14,8 +14,21 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
+      - name: Install huggingface_hub
+        run: pip install huggingface_hub
       - name: Push to Hugging Face Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        # Replace <YOUR_HF_USERNAME> and <YOUR_SPACE_NAME> with your actual Hugging Face details
-        run: git push --force https://camphor5:$HF_TOKEN@huggingface.co/spaces/camphor5/Satarkta HEAD:main
+        run: |
+          python -c "
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi()
+          api.upload_folder(
+              folder_path='.',
+              repo_id='camphor5/Satarkta',
+              repo_type='space',
+              token=os.environ.get('HF_TOKEN'),
+              ignore_patterns=['.git/*', '.github/*', 'venv/*', '__pycache__/*']
+          )
+          "

@@ -1,60 +1,48 @@
 import pandas as pd
 import numpy as np
+from datasets import load_dataset
 import os
 
 _cached_normal = None
 _cached_fraud = None
 
-def _generate_synthetic_pca(n_samples: int) -> pd.DataFrame:
-    """Generates synthetic random data matching the MLG-ULB Credit Card Fraud schema."""
-    np.random.seed(None)
-    
-    data = {
-        'Time': np.random.uniform(0, 172792, size=n_samples).round(0),
-        'Amount': np.random.exponential(scale=88, size=n_samples).round(2),
-        'Class': np.random.choice([0, 1], size=n_samples, p=[0.97, 0.03]) # 3% fraud for testing
-    }
-    
-    for i in range(1, 29):
-        data[f'V{i}'] = np.random.normal(0, 1, size=n_samples)
-        
-    df = pd.DataFrame(data)
-    # Sort by time to simulate a stream
-    df = df.sort_values('Time').reset_index(drop=True)
-    return df
-
-def get_cached_data(file_path):
+def _load_paysim_data():
+    """Loads the PaySim dataset from Hugging Face Hub (cached automatically)."""
     global _cached_normal, _cached_fraud
     if _cached_normal is None or _cached_fraud is None:
-        print(f"Loading full {file_path} into memory for balanced sampling...")
-        df = pd.read_csv(file_path)
-        _cached_normal = df[df['Class'] == 0]
-        _cached_fraud = df[df['Class'] == 1]
+        print("Loading PaySim dataset from Hugging Face Hub...")
+        # Load the dataset
+        ds = load_dataset('theman10/paysim', split='train')
+        df = ds.to_pandas()
+        
+        # We need standard features
+        df = df[['step', 'type', 'amount', 'oldbalanceOrg', 'newbalanceOrig', 
+                 'oldbalanceDest', 'newbalanceDest', 'isFraud']]
+        
+        _cached_normal = df[df['isFraud'] == 0]
+        _cached_fraud = df[df['isFraud'] == 1]
     return _cached_normal, _cached_fraud
 
-def generate_live_batch(batch_size: int = 15, file_path: str = 'creditcard.csv', current_step: int = 0, force_malicious: bool = False) -> pd.DataFrame:
-    if os.path.exists(file_path):
-        normal_df, fraud_df = get_cached_data(file_path)
-        
-        if force_malicious:
-            num_fraud = np.random.choice([1, 2, 3])
-        else:
-            num_fraud = 0
-            
-        num_normal = batch_size - num_fraud
-        
-        batch = pd.concat([
-            normal_df.sample(num_normal),
-            fraud_df.sample(num_fraud)
-        ])
-        
-        batch = batch.sample(frac=1).reset_index(drop=True)
-        return batch
+def generate_live_batch(batch_size: int = 15, current_step: int = 0, force_malicious: bool = False) -> pd.DataFrame:
+    """Generates a batch by sampling from the PaySim dataset."""
+    normal_df, fraud_df = _load_paysim_data()
+    
+    if force_malicious:
+        num_fraud = np.random.choice([1, 2, 3])
     else:
-        df = _generate_synthetic_pca(batch_size)
-        return df
+        num_fraud = 0
+        
+    num_normal = batch_size - num_fraud
+    
+    batch = pd.concat([
+        normal_df.sample(num_normal),
+        fraud_df.sample(num_fraud) if num_fraud > 0 else pd.DataFrame()
+    ])
+    
+    batch = batch.sample(frac=1).reset_index(drop=True)
+    return batch
 
 if __name__ == "__main__":
-    print("Generating synthetic PCA data for testing...")
-    df_test = _generate_synthetic_pca(100)
-    print(df_test.head())
+    print("Testing PaySim data loader...")
+    df_test = generate_live_batch(5, force_malicious=True)
+    print(df_test)

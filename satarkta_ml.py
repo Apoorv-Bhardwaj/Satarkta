@@ -6,7 +6,8 @@ class SatarktaModel:
     def __init__(self, model_path: str = 'model.json'):
         self.model_path = model_path
         self.model = xgb.XGBClassifier()
-        self.features = ['Time', 'Amount'] + [f'V{i}' for i in range(1, 29)]
+        self.features = ['step', 'type', 'amount', 'oldbalanceOrg', 'newbalanceOrig', 
+                         'oldbalanceDest', 'newbalanceDest']
         self.load_model()
         
     def load_model(self):
@@ -19,9 +20,12 @@ class SatarktaModel:
         Takes a DataFrame of raw transactions, runs them through XGBoost,
         and returns a DataFrame with Risk_Score and Action appended.
         """
+        # Ensure 'type' is category
+        df['type'] = df['type'].astype('category')
+        
         X = df[self.features]
         
-        # Get raw probabilities for the positive class (Class = 1)
+        # Get raw probabilities for the positive class (isFraud = 1)
         probabilities = self.model.predict_proba(X)[:, 1]
         
         df['Risk_Score'] = probabilities

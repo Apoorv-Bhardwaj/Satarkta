@@ -5,7 +5,6 @@ from google import genai
 from google.genai import types
 from satarkta_ml import SatarktaModel
 from data_generator import generate_live_batch
-import json
 
 # Set up page config
 st.set_page_config(
@@ -43,11 +42,21 @@ def load_ml_engine():
 
 ml_engine = load_ml_engine()
 
+# Sidebar Controls
+with st.sidebar:
+    st.header("Control Panel")
+    st.markdown("### Configuration")
+    user_api_key = st.text_input("Gemini API Key", type="password", help="Enter your Gemini API key to enable the Satarkta Bot.")
+    st.divider()
+    
+    fetch_regular = st.button("Fetch Next Transaction Batch", type="primary", use_container_width=True)
+    fetch_malicious = st.button("Fetch Malicious Transaction", use_container_width=True)
+
 # Initialize Gemini AI
 def setup_gemini():
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = user_api_key or os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        st.sidebar.warning("GEMINI_API_KEY environment variable not found. Satarkta Bot disabled.")
+        st.sidebar.warning("API key not provided. Satarkta Bot disabled.")
         return None
     
     try:
@@ -71,35 +80,25 @@ if 'chat_history' not in st.session_state:
 
 import time
 
-# Sidebar Controls
-with st.sidebar:
-    st.header("Control Panel")
-    
-    fetch_regular = st.button("Fetch Next Transaction Batch", type="primary", use_container_width=True)
-    fetch_malicious = st.button("Fetch Malicious Transaction", use_container_width=True)
-    
-    if fetch_regular or fetch_malicious:
-        with st.spinner("Fetching and scoring..."):
-            time.sleep(0.5)
-            
-            raw_batch = generate_live_batch(
-                batch_size=15, 
-                current_step=st.session_state.current_step,
-                force_malicious=bool(fetch_malicious)
-            )
-            
-            if 'Class' in raw_batch.columns:
-                raw_batch = raw_batch.drop(columns=['Class'])
-            
-            scored_batch = ml_engine.predict(raw_batch)
-            st.session_state.live_df = scored_batch
-            st.session_state.current_step += 15
+if fetch_regular or fetch_malicious:
+    with st.spinner("Fetching and scoring..."):
+        time.sleep(0.5)
+        
+        raw_batch = generate_live_batch(
+            batch_size=15, 
+            current_step=st.session_state.current_step,
+            force_malicious=bool(fetch_malicious)
+        )
+        
+        if 'isFraud' in raw_batch.columns:
+            raw_batch = raw_batch.drop(columns=['isFraud'])
+        
+        scored_batch = ml_engine.predict(raw_batch)
+        st.session_state.live_df = scored_batch
+        st.session_state.current_step += 15
 
 # Main Dashboard
-st.title("Satarkta Pipeline")
-
-if not os.path.exists('creditcard.csv'):
-    st.error("⚠️ `creditcard.csv` is missing from the server! The dashboard is currently generating random fake numbers, which the AI model will always score as APPROVED (0.0000). Please upload the dataset to Hugging Face Spaces to see real fraud detection.")
+st.title("Satarkta Pipeline (PaySim Dataset)")
 
 if not st.session_state.live_df.empty:
     df = st.session_state.live_df
@@ -129,18 +128,19 @@ if not st.session_state.live_df.empty:
         else:
             return [''] * len(row)
             
-    # Hide V5 through V28 for cleaner UI
-    display_cols = ['Time', 'Amount', 'V1', 'V2', 'V3', 'V4', 'Risk_Score', 'Action']
+    display_cols = ['step', 'type', 'amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest', 'Risk_Score', 'Action']
     display_df = df[display_cols]
     
     styled_df = display_df.style.apply(highlight_actions, axis=1).format({
-        'Amount': "{:.2f}",
-        'Risk_Score': "{:.4f}",
-        'V1': "{:.3f}", 'V2': "{:.3f}", 'V3': "{:.3f}", 'V4': "{:.3f}"
+        'amount': "{:.2f}",
+        'oldbalanceOrg': "{:.2f}",
+        'newbalanceOrig': "{:.2f}",
+        'oldbalanceDest': "{:.2f}",
+        'newbalanceDest': "{:.2f}",
+        'Risk_Score': "{:.4f}"
     })
     
     st.dataframe(styled_df, width="stretch", height=400)
-    st.caption("Note: PCA features V5-V28 are hidden from the visual dashboard for clarity but are still used for ML scoring.")
 else:
     st.info("Click 'Fetch Next Transaction Batch' in the sidebar to start the live stream.")
 
@@ -149,7 +149,7 @@ st.divider()
 st.subheader("Satarkta Bot")
 
 if ai_client is None:
-    st.warning("Satarkta Bot is currently unavailable due to missing API key.")
+    st.warning("Satarkta Bot is currently unavailable due to missing API key. Please enter your Gemini API key in the sidebar.")
 else:
     # Render Chat History
     for msg in st.session_state.chat_history:
@@ -168,7 +168,18 @@ else:
                 try:
                     if not st.session_state.live_df.empty:
                         context_json = st.session_state.live_df.to_json(orient="records")
-                        full_prompt = f"Context (Live DataFrame State as JSON): {context_json}\n\nUser Question: {prompt}"
+                        schema_desc = (
+                            "Data Schema (PaySim Mobile Money Fraud):\n"
+                            "- step: 1 step represents 1 hour of time.\n"
+                            "- type: Transaction type (CASH_IN, CASH_OUT, DEBIT, PAYMENT, TRANSFER).\n"
+                            "- amount: Transaction amount in local currency.\n"
+                            "- oldbalanceOrg / newbalanceOrig: Sender's account balance before and after the transaction.\n"
+                            "- oldbalanceDest / newbalanceDest: Recipient's account balance before and after the transaction.\n"
+                            "- Risk_Score: The machine learning model's predicted probability of fraud (0.0 to 1.0).\n"
+                            "- Action: 'FLAGGED' or 'BLOCKED' if the Risk_Score exceeds certain thresholds.\n"
+                            "Fraud often happens when transfers or cash-outs rapidly drain an account to zero (e.g., amount == oldbalanceOrg)."
+                        )
+                        full_prompt = f"{schema_desc}\n\nContext (Live DataFrame State as JSON): {context_json}\n\nUser Question: {prompt}"
                     else:
                         full_prompt = f"Context: No transactions have been fetched yet.\n\nUser Question: {prompt}"
                         
@@ -176,7 +187,7 @@ else:
                         model='gemini-2.5-flash',
                         contents=full_prompt,
                         config=types.GenerateContentConfig(
-                            system_instruction="You are a Senior Fraud Operations Assistant named Satarkta. You analyze financial transaction data to identify potential fraud. The data uses PCA-transformed features (V1-V28). Be concise, professional, and do not use emojis."
+                            system_instruction="You are a Senior Fraud Operations Assistant named Satarkta. You analyze financial transaction data to identify potential fraud. Explain anomalies clearly using the provided schema. Be concise, professional, and do not use emojis."
                         )
                     )
                     st.markdown(response.text)
@@ -184,10 +195,3 @@ else:
                 except Exception as e:
                     error_msg = str(e)
                     st.error(f"Error communicating with AI: {error_msg}")
-                    if "404" in error_msg or "not found" in error_msg.lower():
-                        try:
-                            st.warning("Attempting to fetch a list of currently available models for your API key...")
-                            available_models = [m.name for m in ai_client.models.list()]
-                            st.info(f"**Available models:** {', '.join(available_models)}")
-                        except Exception as list_e:
-                            st.error(f"Could not fetch model list: {str(list_e)}")
