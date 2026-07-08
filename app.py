@@ -156,9 +156,39 @@ else:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
             
-    # Chat Input
-    prompt = st.chat_input("Ask a question about the current transaction batch...")
+    # Chat Input with Rate Limiting for Default Key
+    is_default_key = not bool(user_api_key)
+    chat_disabled = False
+    
+    if 'questions_asked' not in st.session_state:
+        st.session_state.questions_asked = 0
+    if 'rate_limit_start' not in st.session_state:
+        st.session_state.rate_limit_start = 0
+        
+    if is_default_key:
+        if st.session_state.questions_asked >= 5:
+            if time.time() - st.session_state.rate_limit_start < 600: # 10 minutes
+                chat_disabled = True
+            else:
+                st.session_state.questions_asked = 0
+                
+    if chat_disabled:
+        st.warning("⏳ You have reached the 5-question limit for the default testing API key. Please wait 10 minutes, or enter your own Gemini API Key in the sidebar to continue immediately.")
+        prompt = None
+    else:
+        if is_default_key:
+            remaining = 5 - st.session_state.questions_asked
+            st.caption(f"**Test Mode:** You have {remaining}/5 questions remaining before a 10-minute cooldown.")
+            prompt = st.chat_input(f"Ask a question... ({remaining}/5 remaining)")
+        else:
+            prompt = st.chat_input("Ask a question about the current transaction batch...")
+        
     if prompt:
+        if is_default_key:
+            st.session_state.questions_asked += 1
+            if st.session_state.questions_asked >= 5:
+                st.session_state.rate_limit_start = time.time()
+                
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
